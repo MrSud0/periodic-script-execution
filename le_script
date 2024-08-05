@@ -1,0 +1,70 @@
+import subprocess
+import time
+import argparse
+import multiprocessing
+import os
+import signal
+
+def run_executable_at_interval(interval, executable_path):
+    while True:
+        # Determine if the file is a Python script or an executable
+        if executable_path.endswith('.py'):
+            subprocess.run(["python", executable_path])
+        else:
+            subprocess.run([executable_path])
+        
+        # Wait for the specified interval
+        time.sleep(interval)
+
+def start_background_process(interval, executable_path, pid_file):
+    process = multiprocessing.Process(target=run_executable_at_interval, args=(interval, executable_path))
+    process.daemon = True  # Ensure the process will terminate when the parent process ends
+    process.start()
+
+    # Save the PID to a file
+    with open(pid_file, "w") as f:
+        f.write(str(process.pid))
+
+    return process
+
+def stop_background_process(pid_file):
+    try:
+        with open(pid_file, "r") as f:
+            pid = int(f.read().strip())
+
+        os.kill(pid, signal.SIGTERM)  # or signal.SIGKILL for immediate termination
+        print(f"Terminated process with PID {pid}")
+
+        os.remove(pid_file)
+    except Exception as e:
+        print(f"Could not terminate process: {e}")
+
+def check_process_status(pid_file):
+    try:
+        with open(pid_file, "r") as f:
+            pid = int(f.read().strip())
+
+        # Check if the process is still running
+        os.kill(pid, 0)
+        print(f"Process with PID {pid} is running.")
+    except Exception as e:
+        print(f"No running process found or error occurred: {e}")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Manage an executable running at a specified interval.")
+    parser.add_argument("action", type=str, choices=["start", "stop", "status"], help="Action to perform: start, stop, or status")
+    parser.add_argument("--interval", type=int, help="Interval in seconds between executions (required for start)")
+    parser.add_argument("--executable-path", type=str, help="Path to the executable to run (required for start)")
+    parser.add_argument("--pid-file", type=str, default="process.pid", help="File to store the PID of the background process")
+
+    args = parser.parse_args()
+
+    if args.action == "start":
+        if not args.interval or not args.executable_path:
+            parser.error("start action requires --interval and --executable-path arguments")
+        start_background_process(args.interval, args.executable_path, args.pid_file)
+        print("Started background process")
+    elif args.action == "stop":
+        stop_background_process(args.pid_file)
+    elif args.action == "status":
+        check_process_status(args.pid_file)
