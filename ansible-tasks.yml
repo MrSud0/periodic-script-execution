@@ -1,0 +1,27 @@
+---
+- name: Manage executable background process on Windows
+  hosts: windows
+  tasks:
+    - name: Start the executable background process
+      win_shell: |
+        python C:\path\to\process_manager.py start --interval 60 --executable-path C:\path\to\executable.exe --pid-file C:\path\to\process.pid
+      args:
+        executable: cmd
+      when: action == "start"
+
+    - name: Stop the executable background process
+      win_shell: |
+        python C:\path\to\process_manager.py stop --pid-file C:\path\to\process.pid
+      args:
+        executable: cmd
+      when: action == "stop"
+
+    - name: Check the status of the executable background process
+      win_shell: |
+        python C:\path\to\process_manager.py status --pid-file C:\path\to\process.pid
+      args:
+        executable: cmd
+      when: action == "status"
+
+  vars:
+    action: "{{ action }}"
